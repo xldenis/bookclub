@@ -123,4 +123,5 @@ main = do
   let port = case args of
               [] -> 8080
               x:_ -> read x :: Int
+  print $ "Booted with port " ++ show port
   run port (slashSimple runInterp)
