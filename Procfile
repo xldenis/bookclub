@@ -1,1 +1,1 @@
-web: bookclub $PORT
+web: /app/.local/bin/bookclub $PORT
