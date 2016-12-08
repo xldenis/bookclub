@@ -28,3 +28,4 @@ executable bookclub
                      , mtl
                      , time
                      , warp
+                     , bytestring

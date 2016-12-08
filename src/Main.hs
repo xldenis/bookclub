@@ -4,9 +4,11 @@ module Main where
 import GHC.Generics
 
 import Data.Aeson
-import Data.Text.Lazy as TL (fromStrict)
-import Data.Text as T
-import Data.Time.Clock
+
+import qualified Data.ByteString.Char8 as B
+import           Data.Text.Lazy as TL (fromStrict)
+import           Data.Text as T
+import           Data.Time.Clock
 
 import qualified Data.Text.Lazy.Encoding as TLE
 
@@ -24,7 +26,7 @@ import qualified Network.Wai as W
 import           Network.Wai.Handler.Warp
 import           Network.HTTP.Types (status200, status404, hContentType)
 
-import System.Environment (getArgs)
+import System.Environment (getArgs, getEnv)
 
 import Database.PostgreSQL.Simple
 
@@ -98,7 +100,8 @@ runInterp c = do
   case M.parseMaybe parseCommand (text c) of
     Nothing -> return "I'm sorry I didn't understand that"
     Just bc -> do
-      conn <- connectPostgreSQL ""
+      connInfo <- getEnv "DATABASE_URL"
+      conn <- connectPostgreSQL (B.pack connInfo)
       runReaderT (interpCommand c bc) conn
 
 slashSimple :: (Command -> IO Text) -> W.Application
