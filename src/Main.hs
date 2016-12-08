@@ -24,6 +24,7 @@ import qualified Network.Wai as W
 import           Network.Wai.Handler.Warp
 import           Network.HTTP.Types (status200, status404, hContentType)
 
+import System.Environment (getArgs)
 
 import Database.PostgreSQL.Simple
 
@@ -118,4 +119,8 @@ slash f req resp = do
 
 main :: IO ()
 main = do
-  run 8080 (slashSimple runInterp)
+  args <- getArgs
+  let port = case args of
+              [] -> 8080
+              x:_ -> read x :: Int
+  run port (slashSimple runInterp)
