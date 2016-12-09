@@ -48,36 +48,35 @@ parseCommand = do
 interpCommand :: Command -> BookCommand -> ReaderT Connection IO Text
 interpCommand c List = do
   conn <- ask
-  lift $ do
-    results <- query_ conn "select title from books where read = false"
-    return $ formatResults results
+  results <- lift $ query_ conn "select title from books where read = false"
+  return $ formatResults results
   where formatResults = T.unlines . fmap (fromOnly)
 interpCommand c (Add  b) = do
   conn <- ask
-  lift $ do
-    time <- getCurrentTime
-    execute conn "insert into books values (?, ?)" (b, time)
-    return "Added the book to the list!"
+  time <- lift $ getCurrentTime
+  lift $ execute conn "insert into books values (?, ?)" (b, time)
+  return "Added the book to the list!"
 interpCommand c (Vote b) = do
   conn <- ask
-  lift $ do
-    (userIds :: [Only Integer]) <- query conn "select id from users where name = ?" [user_name c]
-    uIds <- case userIds of
-      [] -> do
-        time <- getCurrentTime
-        query conn "insert into users values (?, ?) returning id" (user_name c, time)
-      x -> return x
 
-    (bookIds :: [Only Integer]) <- query conn "select id from books where title = ?" [b]
+  (userIds :: [Only Integer]) <- lift $ query conn "select id from users where name = ?" [user_name c]
 
-    case bookIds of
-      []    -> return "Could not find that book :("
-      [bId] -> do
-        time <- getCurrentTime
-        let uId = fromOnly $ Prelude.head userIds
-        execute conn "insert into votes values (?, ?, ?)" (uId, fromOnly bId, time)
-        return "voted for the book"
-      _ -> return "ruhroh multiple books were found"
+  uIds <- lift $ case userIds of
+    [] -> do
+      time <- getCurrentTime
+      query conn "insert into users values (?, ?) returning id" (user_name c, time)
+    x -> return x
+
+  (bookIds :: [Only Integer]) <- lift $ query conn "select id from books where title = ?" [b]
+
+  lift $ case bookIds of
+    []    -> return "Could not find that book :("
+    [bId] -> do
+      time <- getCurrentTime
+      let uId = fromOnly $ Prelude.head userIds
+      execute conn "insert into votes values (?, ?, ?)" (uId, fromOnly bId, time)
+      return "voted for the book"
+    _ -> return "ruhroh multiple books were found"
 
 runInterp :: Connection -> Command -> IO Text
 runInterp conn c = do
