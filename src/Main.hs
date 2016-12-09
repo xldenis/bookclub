@@ -1,43 +1,27 @@
 {-# LANGUAGE OverloadedStrings, DeriveGeneric, DeriveAnyClass, ScopedTypeVariables #-}
 module Main where
 
-import GHC.Generics
-
 import Data.Aeson
 
 import qualified Data.ByteString.Char8 as B
-import           Data.Text.Lazy as TL (fromStrict)
 import           Data.Text as T
 import           Data.Time.Clock
-
-import qualified Data.Text.Lazy.Encoding as TLE
 
 import Text.Megaparsec as M
 import Text.Megaparsec.Lexer as L
 import Text.Megaparsec.Text
 
-import Web.FormUrlEncoded
-
 import Control.Monad (void)
 import Control.Monad.Trans (MonadIO)
 import Control.Monad.Reader
 
-import qualified Network.Wai as W
 import           Network.Wai.Handler.Warp
-import           Network.HTTP.Types (status200, status404, hContentType)
 
 import System.Environment (getArgs, getEnv)
 
 import Database.PostgreSQL.Simple
 
-data Command = Command
-  { command :: Text
-  , user_name :: Text
-  , channel_name :: Text
-  , text :: Text
-  } deriving (Show, Eq, Generic)
-
-instance FromForm Command
+import Slack
 
 type User = Text
 
@@ -58,8 +42,8 @@ parseCommand :: Parser BookCommand
 parseCommand = do
   list <|> add <|> vote
   where list = sym "list" *> return List
-        add  = sym "add"  *> ((Add . pack)  <$> manyTill anyChar eol)
-        vote = sym "vote" *> ((Vote . pack) <$> manyTill anyChar eol)
+        add  = sym "add"  *> ((Add  . strip . pack) <$> manyTill anyChar eof)
+        vote = sym "vote" *> ((Vote . strip . pack) <$> manyTill anyChar eof)
 
 interpCommand :: Command -> BookCommand -> ReaderT Connection IO Text
 interpCommand c List = do
@@ -73,7 +57,7 @@ interpCommand c (Add  b) = do
   lift $ do
     time <- getCurrentTime
     execute conn "insert into books values (?, ?)" (b, time)
-    return "yolo"
+    return "Added the book to the list!"
 interpCommand c (Vote b) = do
   conn <- ask
   lift $ do
@@ -92,33 +76,15 @@ interpCommand c (Vote b) = do
         time <- getCurrentTime
         let uId = fromOnly $ Prelude.head userIds
         execute conn "insert into votes values (?, ?, ?)" (uId, fromOnly bId, time)
-        return "yay"
-      _ -> return "wtf y'd u do that to me :/"
+        return "voted for the book"
+      _ -> return "ruhroh multiple books were found"
 
-runInterp :: Command -> IO Text
-runInterp c = do
+runInterp :: Connection -> Command -> IO Text
+runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
     Nothing -> return "I'm sorry I didn't understand that"
     Just bc -> do
-      connInfo <- getEnv "DATABASE_URL"
-      conn <- connectPostgreSQL (B.pack connInfo)
       runReaderT (interpCommand c bc) conn
-
-slashSimple :: (Command -> IO Text) -> W.Application
-slashSimple f = do
-  slash $ \p req resp -> case p of
-    Left _ ->  resp errorResp
-    Right c -> (f c) >>= resp . successResp
-  where errorResp   = W.responseLBS status404 headers "yolooooooo"
-        successResp = W.responseLBS status200 headers . TLE.encodeUtf8 . fromStrict
-        headers     = [("Content-Type", "text/plain")]
-
-slash :: (Either Text Command -> W.Application) -> W.Application
-slash f req resp = do
-  body <- W.strictRequestBody req
-  let params = urlDecodeForm body >>= fromForm
-
-  f params req resp
 
 main :: IO ()
 main = do
@@ -127,4 +93,8 @@ main = do
               [] -> 8080
               x:_ -> read x :: Int
   print $ "Booted with port " ++ show port
-  run port (slashSimple runInterp)
+
+  connInfo <- getEnv "DATABASE_URL"
+  conn <- connectPostgreSQL (B.pack connInfo)
+
+  run port (slashSimple $ runInterp conn)
