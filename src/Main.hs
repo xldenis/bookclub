@@ -48,7 +48,7 @@ data BookCommand
   deriving (Show, Eq)
 
 sc :: Parser ()
-sc = void spaceChar
+sc = void $ skipMany spaceChar
 
 sym = symbol sc
 

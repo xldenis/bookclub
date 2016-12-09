@@ -1,0 +1,256 @@
+ALTER USER postgres CREATEDB
+;
+DROP DATABASE "test_web"
+;
+SELECT d.datname as "Name",
+pg_catalog.pg_get_userbyid(d.datdba) as "Owner"
+FROM pg_catalog.pg_database d
+WHERE d.datname = 'test_web'
+ORDER BY 1;
+DROP DATABASE test_web
+;
+ALTER USER postgres CREATEDB
+;
+DROP DATABASE test_web
+DROP DATABASE development_web
+;
+DROP DATABASE test_web;
+DROP DATABASE development_web;
+drop table hack_statistics;
+drop table leaderboard_positions;
+drop table league_entries;
+drop table changelogs;
+exit
+;
+DROP TABLE game_prizes;
+drop table schedules;
+CREATE EXTENSION 'uuid-ossp';
+CREATE EXTENSION "uuid-ossp";
+create table posts (
+id serial primary key,
+title varchar(128) not null,
+body text not null,
+created_At timestamp not null,
+updated_at timestamp not null
+);
+grant all privileges on database xavio_development to postgres;
+SELECT * from posts;
+create table posts (
+id serial primary key,
+title varchar(128) not null,
+body text not null,
+created_At timestamp not null,
+updated_at timestamp not null
+);
+SHOW * from tables
+;
+show tables;
+show;
+\h show
+\dt
+\dt *.*
+\dt
+create table posts (
+id serial primary key,
+title varchar(128) not null,
+body text not null,
+created_At timestamp not null,
+updated_at timestamp not null
+);
+\dt
+\dt
+\dt posts
+describe table posts;
+describe table posts;
+\d+ posts
+drop table posts;
+ALTER TABLE "posts" ADD CONSTRAINT pk_ PRIMARY KEY (id);
+CREATE TABLE "posts" ("id" INTEGER, "title" TEXT, "body" TEXT, "created_at" TIMESTAMPTZ, "updated_at" TIMESTAMPTZ);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (title);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (body);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (created_at);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (updated_at);
+ALTER TABLE "posts" ALTER COLUMN col SET DEFAULT id;
+ALTER TABLE "posts" ADD CONSTRAINT pk_ PRIMARY KEY (id);
+CREATE TABLE "posts" ("id" INTEGER, "title" TEXT, "body" TEXT, "created_at" TIMESTAMPTZ, "updated_at" TIMESTAMPTZ);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (title);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (body);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (created_at);
+\d+ posts
+LOAD 'auto_explain';
+INSERT (null, something, aaa, 2016-10-12 21:31:39.755733-05, 2016-10-12 21:31:39.755733-05) into posts;
+INSERT null, something, aaa, 2016-10-12 21:31:39.755733-05, 2016-10-12 21:31:39.755733-05 into posts;
+insert into posts Last login: Wed Oct 12 10:06:52 on ttys000
+λ(zen) ~ →
+λ c xldenis/xavio
+λ(zen) xavio → git master *
+λ stack build
+λ(zen) xavio → git master *
+λ stack build && stack exec xavio-app
+ALTER TABLE "posts" ADD CONSTRAINT pk_ PRIMARY KEY (id);
+CREATE TABLE "posts" ("id" INTEGER, "title" TEXT, "body" TEXT, "created_at" TIMESTAMPTZ, "updated_at" TIMESTAMPTZ);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (title);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (body);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (created_at);
+ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (updated_at);
+ALTER TABLE "posts" ALTER COLUMN col SET DEFAULT id;
+^[c^[c^C
+λ(zen) xavio → git master *
+λ psql -U postgres xavio_development
+psql (9.5.1)
+Type "help" for help.
+xavio_development=> ALTER TABLE "posts" ADD CONSTRAINT pk_ PRIMARY KEY (id);
+ALTER TABLE
+xavio_development=> CREATE TABLE "posts" ("id" INTEGER, "title" TEXT, "body" TEXT, "created_at" TIMESTAMPTZ, "updated_at" TIMESTAMPTZ);
+ERROR:  relation "posts" already exists
+xavio_development=> ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (title);
+ERROR:  argument of CHECK must be type boolean, not type text
+xavio_development=> ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (body);
+ERROR:  argument of CHECK must be type boolean, not type text
+xavio_development=> ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (created_at);
+ERROR:  argument of CHECK must be type boolean, not type timestamp with time zone
+xavio_development=> ALTER TABLE "posts" ADD CONSTRAINT ch_ CHECK (updated_at);^C
+xavio_development=> \q
+select set_config('log_statement', 'all', true);
+insert into posts (null, something, aaa, 2016-10-12 21:31:39.755733-05, 2016-10-12 21:31:39.755733-05) ; 
+insert into posts (something, aaa, 2016-10-12 21:31:39.755733-05, 2016-10-12 21:31:39.755733-05) ; 
+insert into posts (something, aaa, "2016-10-12 21:31:39.755733-05", "2016-10-12 21:31:39.755733-05") ; 
+insert into posts (something, aaa, "2016-10-12 21:31:39.755733-05", "2016-10-12 21:31:39.755733-05");
+show log_destination;
+show log_directory;
+insert into posts (id) values (DEFAULT);
+\dt+ posts
+\da+ posts
+\d+ posts
+insert into posts (id) values (22);
+\d+ posts
+select * from posts;
+\d+ posts;
+insert into posts (id) values (default);;
+insert into posts (id) values (DEFAULT);
+insert into posts () values ();
+insert into posts ("title") values ("aaaa");
+insert into posts ("title") values ('aaaa');
+drop table posts;
+create table posts (
+  id serial primary key,
+  title varchar(128) not null,
+  body text not null,
+  created_at timestampz not null,
+  updated_at timestampz not null
+);
+create table posts (
+  id serial primary key,
+  title varchar(128) not null,
+  body text not null,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+\d+ posts
+insert into posts ("title") values ('aaaa');
+drop table posts;
+create table posts (
+  id serial primary key,
+  title varchar(128) not null,
+  body text not null,
+  created_at timestamptz not null,
+  updated_at timestamptz not null
+);
+select '[2.0, 3.0]' && '[2.0, 3.0]' from *;
+select '[2.0, 3.0]' && '[2.0, 3.0]' from posts;
+select '[2.0, 3.0]' << '[2.0, 3.0]' from posts;
+\h
+\help
+select '[2.0, 3.0]'  from posts;
+explain select '[2.0, 3.0]'  from posts;
+type select '[2.0, 3.0]'  from posts;
+select '[2.0, 3.0]' << '[2.0, 3.0]' from posts;
+select '[2, 3]' << '[2, 3]' from posts;
+select '[2, 3]' -|- '[2, 3]' from posts;
+select '[2.0, 3.0]' -|- '[2, 3]' from posts;
+select '[2.0, 3.0]' -|- '[2.0, 3.0]' from posts;
+select doublerange(2.0, 3.0) -|- '[2.0, 3.0]' from posts;
+select int4range(4,4) from posts ; 
+select float8range(2.0, 3.0) -|- '[2.0, 3.0]' from posts;
+select float16range(2.0, 3.0) -|- '[2.0, 3.0]' from posts;
+select realrange(2.0, 3.0) -|- '[2.0, 3.0]' from posts;
+select int4range(4,4) from posts ; 
+select int4range(4,4) && int4range(3,4)from posts ; 
+select int4range(4,6) && int4range(3,4)from posts ; 
+select int4range(4,6) << int4range(3,4)from posts ; 
+select int4range(4,6) << '[3,4]' from posts ; 
+select '[4,5]' << '[3,4]' from posts ; 
+select '[4,5 :: int4]' << '[3,4]' from posts ; 
+select '[4 :: int4 ,5 :: int4]' << '[3,4]' from posts ; 
+select '[4 :: int4 ,5 :: int4]' << '[3 :: int4,4 ::int4]' from posts ; 
+\t
+\t
+\dt
+create table (r int4range);
+select ('[2,3]') && ('[2,3]') from posts;
+select ('[2,3]') && ('[2,3]') from table8;
+select pg_typeof(('[2,3]') && ('[2,3]')) from table8;
+select pg_typeof(('[2,3]')) from table8;
+create table a (t int4range);
+select t && t from a;
+insert into a values '[1,3]' ;
+insert into a values ('[1,3]') ;
+select ('[2,3]') -|- ('[2,3]') from table8;
+select ('[1,2]') -|- ('[2,3]') from table8;
+select t -|- t from a;
+select ('[1,2]' :: int4range) -|- ('[2,3]') from table8;
+select ('[1,3]' :: int4range) -|- ('[2,3]') from table8;
+select ('[1,2]' :: int4range) -|- ('[2,3]') from table8;
+select ('[1,2]' :: numrange) -|- ('[2,3]') from table8;
+select   numrange(1.1,2.2) -|- numrange(2.2,3.3) ;
+  numrange(1.1,2.2) -|- numrange(2.2,3.3);
+select   numrange(1.1,2.2) -|- numrange(2.2,3.3) ;
+select   numrange(1.1,2) -|- numrange(2,3.3) ;
+select   numrange(1.1,2) -|- numrange(2,3) ;
+select   int4range(1,2) -|- int4range(2,3) ;
+SELECT ('[1,2]') -|- ('[2,3]') as "result1_1"
+FROM (SELECT 0) as "T1";
+SELECT (CAST('[1,2]' AS int4range)) -|- (CAST('[2,3]' AS int4range)) as "result1_1"
+FROM (SELECT 0) as "T1";
+select   int4range(1,2) -|- int4range(2,3) ;
+SELECT (CAST('[1,2]' AS int4range)) -|- (CAST('[2,3]' AS int4range));
+SELECT (CAST('[1,2)' AS int4range)) -|- (CAST('[2,3]' AS int4range));
+SELECT '[1,2]' && '[2,3]';
+SELECT '[1,2]'::in4range && '[2,3]';
+SELECT '[1,2]'::int4range && '[2,3]';
+SELECT '[1,2]'::int4range && '[2,3]'::int4range;
+create table books (
+  id serial primary key,
+  title text not null,
+  created_at timestamp with time zone
+);
+\dt
+create table users (
+  id serial primary key,
+  name varchar(128) not null,
+  created_at timestamp with time zone
+);
+create table votes (
+  book_id integer not null references books(id),
+  user_id integer not null references users(id)
+);
+\d
+\dt
+drop table votes ;
+create table votes (
+  book_id integer not null references books(id),
+  user_id integer not null references users(id),
+  unique (book_id, user_id)
+);
+drop table users ;
+alter table users ( unique (name));
+alter table users
+add unique (name);
+alter table books
+add unique title
+;
+alter table books
+add unique (title);
+\dt
+\dt books
+\s books
