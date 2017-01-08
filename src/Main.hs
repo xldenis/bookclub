@@ -73,7 +73,7 @@ interpCommand c (Vote b) = do
     []    -> return "Could not find that book :("
     [bId] -> do
       time <- getCurrentTime
-      let uId = fromOnly $ Prelude.head userIds
+      let uId = fromOnly $ Prelude.head uIds
       execute conn "insert into votes values(user_id, book_id, created_at) (?, ?, ?)" (uId, fromOnly bId, time)
       return "voted for the book"
     _ -> return "ruhroh multiple books were found"
