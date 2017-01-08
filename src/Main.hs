@@ -50,11 +50,11 @@ interpCommand c List = do
   conn <- ask
   results <- lift $ query_ conn "select title from books where read = false"
   return $ formatResults results
-  where formatResults = T.unlines . fmap (fromOnly)
-interpCommand c (Add  b) = do
+  where formatResults = (T.append "Books in the list: ") . T.unlines . fmap (fromOnly)
+interpCommand c (Add b) = do
   conn <- ask
   time <- lift $ getCurrentTime
-  lift $ execute conn "insert into books values (?, ?)" (b, time)
+  lift $ execute conn "insert into books(title, created_at) values (?, ?)" (b, time)
   return "Added the book to the list!"
 interpCommand c (Vote b) = do
   conn <- ask
@@ -64,7 +64,7 @@ interpCommand c (Vote b) = do
   uIds <- lift $ case userIds of
     [] -> do
       time <- getCurrentTime
-      query conn "insert into users values (?, ?) returning id" (user_name c, time)
+      query conn "insert into users(name, created_at) values (?, ?) returning id" (user_name c, time)
     x -> return x
 
   (bookIds :: [Only Integer]) <- lift $ query conn "select id from books where title = ?" [b]
@@ -74,7 +74,7 @@ interpCommand c (Vote b) = do
     [bId] -> do
       time <- getCurrentTime
       let uId = fromOnly $ Prelude.head userIds
-      execute conn "insert into votes values (?, ?, ?)" (uId, fromOnly bId, time)
+      execute conn "insert into votes values(user_id, book_id, created_at) (?, ?, ?)" (uId, fromOnly bId, time)
       return "voted for the book"
     _ -> return "ruhroh multiple books were found"
 
