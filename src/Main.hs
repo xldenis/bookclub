@@ -1,11 +1,12 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, DeriveAnyClass, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts, OverloadedStrings, DeriveFunctor, GeneralizedNewtypeDeriving, DeriveGeneric, ScopedTypeVariables #-}
 module Main where
 
 import Data.Aeson
-
+import Data.Int (Int64)
 import qualified Data.ByteString.Char8 as B
 import           Data.Text as T
 import           Data.Time.Clock
+import           Data.Maybe (listToMaybe)
 
 import Text.Megaparsec as M
 import Text.Megaparsec.Lexer as L
@@ -13,13 +14,15 @@ import Text.Megaparsec.Text
 
 import Control.Monad (void)
 import Control.Monad.Trans (MonadIO)
+import Control.Monad.Except
 import Control.Monad.Reader
 
 import           Network.Wai.Handler.Warp
 
 import System.Environment (getArgs, getEnv)
 
-import Database.PostgreSQL.Simple
+import Database.PostgreSQL.Simple hiding (query_, query, execute)
+import qualified Database.PostgreSQL.Simple as P (query, query_, execute)
 
 import Slack
 
@@ -31,12 +34,27 @@ data BookCommand
   | Vote Text
   deriving (Show, Eq)
 
+newtype Bookclub a = Bookclub
+  { runBookclub :: ReaderT Connection (ExceptT Text IO) a
+  } deriving (Functor, Applicative, Monad, MonadIO, MonadError Text, MonadReader Connection)
+
 sc :: Parser ()
 sc = void $ skipMany spaceChar
 
 sym = symbol sc
 
 lex = lexeme sc
+
+query_ :: (MonadReader Connection m, MonadIO m, FromRow r1) => Query -> m [r1]
+query_ b = do
+  conn <- ask
+  liftIO $ P.query_ conn b
+
+query :: (MonadReader Connection m, MonadIO m, FromRow r1, ToRow q) => Query -> q -> m [r1]
+query b c = ask >>= \conn -> liftIO $ P.query conn b c
+
+execute :: (MonadReader Connection m, MonadIO m, ToRow q) => Query -> q -> m Int64
+execute b c =  ask >>= \conn -> liftIO $ P.execute conn b c
 
 parseCommand :: Parser BookCommand
 parseCommand = do
@@ -45,45 +63,46 @@ parseCommand = do
         add  = sym "add"  *> ((Add  . strip . pack) <$> manyTill anyChar eof)
         vote = sym "vote" *> ((Vote . strip . pack) <$> manyTill anyChar eof)
 
-interpCommand :: Command -> BookCommand -> ReaderT Connection IO Text
+
+interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
-  conn <- ask
-  results <- lift $ query_ conn "select title from books where read = false"
+  results <- query_ "select title from books where read = false"
   return $ formatResults results
   where formatResults = (T.append "Books in the list: ") . T.unlines . fmap (fromOnly)
 interpCommand c (Add b) = do
-  conn <- ask
-  time <- lift $ getCurrentTime
-  lift $ execute conn "insert into books(title, created_at) values (?, ?)" (b, time)
+  time <- liftIO $ getCurrentTime
+  execute "insert into books(title, created_at) values (?, ?)" (b, time)
   return "Added the book to the list!"
 interpCommand c (Vote b) = do
-  conn <- ask
+  (userIds :: [Only Integer]) <- query "select id from users where name = ?" [user_name c]
 
-  (userIds :: [Only Integer]) <- lift $ query conn "select id from users where name = ?" [user_name c]
+  uIds <- maybeList (do
+      time <- liftIO $ getCurrentTime
+      query "insert into users(name, created_at) values (?, ?) returning id" (user_name c, time)
+    ) (return) (userIds)
 
-  uIds <- lift $ case userIds of
-    [] -> do
-      time <- getCurrentTime
-      query conn "insert into users(name, created_at) values (?, ?) returning id" (user_name c, time)
-    x -> return x
+  (bookIds :: [Only Integer]) <- query "select id from books where title = ?" [b]
 
-  (bookIds :: [Only Integer]) <- lift $ query conn "select id from books where title = ?" [b]
-
-  lift $ case bookIds of
-    []    -> return "Could not find that book :("
+  case bookIds of
+    []    -> throwError "Could not find that book :("
     [bId] -> do
-      time <- getCurrentTime
+      time <- liftIO $ getCurrentTime
       let uId = fromOnly $ Prelude.head uIds
-      execute conn "insert into votes values(user_id, book_id, created_at) (?, ?, ?)" (uId, fromOnly bId, time)
+      execute "insert into votes values(user_id, book_id, created_at) (?, ?, ?)" (uId, fromOnly bId, time)
       return "voted for the book"
-    _ -> return "ruhroh multiple books were found"
+    _ -> throwError "ruhroh multiple books were found"
+
+maybeList def _ [] = def
+maybeList _ f xs   = f xs
 
 runInterp :: Connection -> Command -> IO Text
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
     Nothing -> return "I'm sorry I didn't understand that"
     Just bc -> do
-      runReaderT (interpCommand c bc) conn
+      response <- runExceptT $ runReaderT  (runBookclub $ interpCommand c bc) conn
+      return $ either (id) (id) response
+
 
 main :: IO ()
 main = do
