@@ -16,13 +16,14 @@ import Control.Monad (void)
 import Control.Monad.Trans (MonadIO)
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Monad.Catch
 
 import           Network.Wai.Handler.Warp
 
 import System.Environment (getArgs, getEnv)
 
-import Database.PostgreSQL.Simple hiding (query_, query, execute)
-import qualified Database.PostgreSQL.Simple as P (query, query_, execute)
+import Database.PostgreSQL.Simple hiding (query_, query, execute, execute_)
+import qualified Database.PostgreSQL.Simple as P (query, query_, execute, execute_)
 
 import Slack
 
@@ -36,7 +37,7 @@ data BookCommand
 
 newtype Bookclub a = Bookclub
   { runBookclub :: ReaderT Connection (ExceptT Text IO) a
-  } deriving (Functor, Applicative, Monad, MonadIO, MonadError Text, MonadReader Connection)
+  } deriving (Functor, Applicative, Monad, MonadIO, MonadThrow, MonadCatch, MonadError Text, MonadReader Connection)
 
 sc :: Parser ()
 sc = void $ skipMany spaceChar
@@ -56,6 +57,9 @@ query b c = ask >>= \conn -> liftIO $ P.query conn b c
 execute :: (MonadReader Connection m, MonadIO m, ToRow q) => Query -> q -> m Int64
 execute b c =  ask >>= \conn -> liftIO $ P.execute conn b c
 
+execute_ :: (MonadReader Connection m, MonadIO m) => Query -> m Int64
+execute_ b =  ask >>= \conn -> liftIO $ P.execute_ conn b
+
 parseCommand :: Parser BookCommand
 parseCommand = do
   list <|> add <|> vote
@@ -71,14 +75,14 @@ interpCommand c List = do
   where formatResults = (T.append "Books in the list: ") . T.unlines . fmap (fromOnly)
 interpCommand c (Add b) = do
   time <- liftIO $ getCurrentTime
-  execute "insert into books(title, created_at) values (?, ?)" (b, time)
+  execute "insert into books (title, created_at) values (?, ?)" (b, time)
   return "Added the book to the list!"
 interpCommand c (Vote b) = do
   (userIds :: [Only Integer]) <- query "select id from users where name = ?" [user_name c]
 
   uIds <- maybeList (do
       time <- liftIO $ getCurrentTime
-      query "insert into users(name, created_at) values (?, ?) returning id" (user_name c, time)
+      query "insert into users (name, created_at) values (?, ?) returning id" (user_name c, time)
     ) (return) (userIds)
 
   (bookIds :: [Only Integer]) <- query "select id from books where title = ?" [b]
@@ -88,12 +92,20 @@ interpCommand c (Vote b) = do
     [bId] -> do
       time <- liftIO $ getCurrentTime
       let uId = fromOnly $ Prelude.head uIds
-      execute "insert into votes values(user_id, book_id, created_at) (?, ?, ?)" (uId, fromOnly bId, time)
-      return "voted for the book"
+      castVote (fromOnly bId) uId time
     _ -> throwError "ruhroh multiple books were found"
 
 maybeList def _ [] = def
 maybeList _ f xs   = f xs
+
+type BookId = Integer
+type UserId = Integer
+
+castVote :: BookId -> UserId -> UTCTime -> Bookclub Text
+castVote bId uId time = do
+  execute "insert into votes values (?, ?, ?)" (bId, uId, time) `catch` \(e :: SqlError) ->
+    throwError "you can't vote twice you silly goose"
+  return "voted for the book"
 
 runInterp :: Connection -> Command -> IO Text
 runInterp conn c = do

@@ -30,3 +30,4 @@ executable bookclub
                      , time
                      , warp
                      , bytestring
+                     , exceptions
