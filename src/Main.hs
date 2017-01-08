@@ -29,6 +29,9 @@ import Slack
 
 type User = Text
 
+type BookId = Int
+type UserId = Int
+
 data BookCommand
   = List
   | Add Text
@@ -70,42 +73,51 @@ parseCommand = do
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
-  results <- query_ "select title from books where read = false"
-  return $ formatResults results
-  where formatResults = (T.append "Books in the list: ") . T.unlines . fmap (fromOnly)
+  (results :: [(Int, Text)]) <- query_ "select id, title from books where read = false"
+  formatResults <$> mapM (\(bId, title) -> do
+    votes <- numVotes bId
+    return $ T.concat [title, " (", T.pack $ show votes, ")"]
+                        ) results
+  where formatResults = (T.append "Books in the list: \n") . T.unlines
+
 interpCommand c (Add b) = do
   time <- liftIO $ getCurrentTime
   execute "insert into books (title, created_at) values (?, ?)" (b, time)
   return "Added the book to the list!"
 interpCommand c (Vote b) = do
-  (userIds :: [Only Integer]) <- query "select id from users where name = ?" [user_name c]
-
-  uIds <- maybeList (do
-      time <- liftIO $ getCurrentTime
-      query "insert into users (name, created_at) values (?, ?) returning id" (user_name c, time)
-    ) (return) (userIds)
-
-  (bookIds :: [Only Integer]) <- query "select id from books where title = ?" [b]
-
+  uId <- findOrCreateUser (user_name c)
+  (bookIds :: [Only Int]) <- query "select id from books where title = ?" [b]
   case bookIds of
     []    -> throwError "Could not find that book :("
     [bId] -> do
       time <- liftIO $ getCurrentTime
-      let uId = fromOnly $ Prelude.head uIds
       castVote (fromOnly bId) uId time
     _ -> throwError "ruhroh multiple books were found"
 
 maybeList def _ [] = def
 maybeList _ f xs   = f xs
 
-type BookId = Integer
-type UserId = Integer
+findOrCreateUser :: (MonadReader Connection m, MonadIO m, MonadError Text m) => Text -> m UserId
+findOrCreateUser uname = do
+  (userIds :: [Only Int]) <- query "select id from users where name = ?" [uname]
+  uIds <- maybeList (do
+      time <- liftIO $ getCurrentTime
+      query "insert into users (name, created_at) values (?, ?) returning id" (uname, time)
+    ) (return) (userIds)
+  return . fromOnly $ Prelude.head uIds
 
 castVote :: BookId -> UserId -> UTCTime -> Bookclub Text
 castVote bId uId time = do
   execute "insert into votes values (?, ?, ?)" (bId, uId, time) `catch` \(e :: SqlError) ->
     throwError "you can't vote twice you silly goose"
   return "voted for the book"
+
+numVotes :: (MonadReader Connection m, MonadIO m, MonadError Text m) => BookId -> m Int
+numVotes bId = do
+  count <- query "select count(*) from votes where book_id = ?" [bId]
+  case listToMaybe count of
+    Nothing -> return 0
+    Just c  -> return $ fromOnly c
 
 runInterp :: Connection -> Command -> IO Text
 runInterp conn c = do
@@ -114,7 +126,6 @@ runInterp conn c = do
     Just bc -> do
       response <- runExceptT $ runReaderT  (runBookclub $ interpCommand c bc) conn
       return $ either (id) (id) response
-
 
 main :: IO ()
 main = do
