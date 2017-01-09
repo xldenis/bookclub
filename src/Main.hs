@@ -26,6 +26,7 @@ import Database.PostgreSQL.Simple hiding (query_, query, execute, execute_)
 import qualified Database.PostgreSQL.Simple as P (query, query_, execute, execute_)
 
 import Slack
+import qualified Slack.Response as R
 
 type User = Text
 
@@ -79,7 +80,6 @@ interpCommand c List = do
     return $ T.concat [title, " (", T.pack $ show votes, ")"]
                         ) results
   where formatResults = (T.append "Books in the list: \n") . T.unlines
-
 interpCommand c (Add b) = do
   time <- liftIO $ getCurrentTime
   execute "insert into books (title, created_at) values (?, ?)" (b, time)
@@ -106,7 +106,7 @@ findOrCreateUser uname = do
     ) (return) (userIds)
   return . fromOnly $ Prelude.head uIds
 
-castVote :: BookId -> UserId -> UTCTime -> Bookclub Text
+castVote :: (MonadReader Connection m, MonadIO m, MonadCatch m, MonadError Text m) => BookId -> UserId -> UTCTime -> m Text
 castVote bId uId time = do
   execute "insert into votes values (?, ?, ?)" (bId, uId, time) `catch` \(e :: SqlError) ->
     throwError "you can't vote twice you silly goose"
@@ -119,13 +119,13 @@ numVotes bId = do
     Nothing -> return 0
     Just c  -> return $ fromOnly c
 
-runInterp :: Connection -> Command -> IO Text
+runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
-    Nothing -> return "I'm sorry I didn't understand that"
+    Nothing -> return $ R.ephemeral "I'm sorry I didn't understand that"
     Just bc -> do
       response <- runExceptT $ runReaderT  (runBookclub $ interpCommand c bc) conn
-      return $ either (id) (id) response
+      return $ either (R.ephemeral) (R.inChannel) response
 
 main :: IO ()
 main = do

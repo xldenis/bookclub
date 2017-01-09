@@ -1,7 +1,9 @@
-{-# LANGUAGE OverloadedStrings, DeriveGeneric, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, DeriveAnyClass, ScopedTypeVariables #-}
 module Slack where
 
 import GHC.Generics
+
+import           Data.Aeson
 
 import           Data.Text as T
 import           Data.Text.Lazy as TL (fromStrict)
@@ -12,6 +14,8 @@ import           Network.HTTP.Types (status200, status404, hContentType)
 
 import Web.FormUrlEncoded
 
+import qualified Slack.Response as R
+
 data Command = Command
   { command :: Text
   , user_name :: Text
@@ -21,14 +25,14 @@ data Command = Command
 
 instance FromForm Command
 
-slashSimple :: (Command -> IO Text) -> W.Application
+slashSimple :: (Command -> IO R.Response) -> W.Application
 slashSimple f = do
   slash $ \p req resp -> case p of
     Left _ ->  resp errorResp
     Right c -> (f c) >>= resp . successResp
   where errorResp   = W.responseLBS status404 headers "Something went wrong in your request."
-        successResp = W.responseLBS status200 headers . TLE.encodeUtf8 . fromStrict
-        headers     = [("Content-Type", "text/plain")]
+        successResp = W.responseLBS status200 headers . encode
+        headers     = [("Content-Type", "application/json")]
 
 slash :: (Either Text Command -> W.Application) -> W.Application
 slash f req resp = do
