@@ -66,7 +66,7 @@ parseCommand = do
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
-  results <- query_ "select v.book_id, b.title, count(v.book_id)  from books b full join votes v on b.id = v.book_id where b.read = false group by v.book_id, b.title order by count(v.book_id) desc"
+  results <- query_ "select b.id, b.title, count(v.book_id)  from books b full join votes v on b.id = v.book_id where b.read = false group by b.id, b.title order by count(v.book_id) desc"
   formatResults <$> mapM (\(bId :: Int, title, votes :: Int) -> do
     return $ F.sformat bookLine bId title votes
                         ) results
