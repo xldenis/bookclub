@@ -74,10 +74,9 @@ parseCommand = do
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
-  (results :: [(Int, Text)]) <- query_ "select id, title from books where read = false"
-  formatResults <$> mapM (\(bId, title) -> do
-    votes <- numVotes bId
-    return $ T.concat [title, " (", T.pack $ show votes, ")"]
+  (results :: [(Int, Text, Int)]) <- query_ "select v.book_id, b.title, count(v.book_id)  from books b inner join votes v on b.id = v.book_id where b.read = false group by v.book_id, b.title order by count(v.book_id) desc"
+  formatResults <$> mapM (\(bId, title, votes) -> do
+    return $ T.concat ["_", title,"_", " (", T.pack $ show votes, ")"]
                         ) results
   where formatResults = (T.append "Books in the list: \n") . T.unlines
 interpCommand c (Add b) = do
