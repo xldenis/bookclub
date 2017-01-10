@@ -72,7 +72,7 @@ interpCommand c List = do
                         ) results
   where formatResults = (T.append "Books in the list: \n") . T.unlines
         int2Text = T.pack . show @Int
-        bookLine = F.int % ". _" % F.text % "_ (" % F.int % ")"
+        bookLine = F.int % ". _" % F.text % "_ (" % F.int % ":+1:)"
 interpCommand c (Add b) = do
   time <- liftIO $ getCurrentTime
   execute "insert into books (title, created_at) values (?, ?)" (b, time)
