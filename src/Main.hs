@@ -90,7 +90,9 @@ interpCommand c (Unvote b) = do
   hasVoted <- query "select count(*) from votes where user_id = ? and book_id = ?" (uId, bId)
   case Prelude.head hasVoted of
     Only (0 :: Int) -> throwError "You never voted in the first place"
-    _               -> return $ "I would undo your vote but I'm laaaazy"
+    _               -> do
+      execute "delete from votes where user_id = ? and book_id = ?" (uId, bId)
+      return "done"
 interpCommand c Menu = return "Commands are add <title>, vote|unvote <id|title>"
 runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
