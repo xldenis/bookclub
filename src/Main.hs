@@ -76,15 +76,16 @@ interpCommand c (Add b) = do
 interpCommand c (Vote b) = do
   uId <- findOrCreateUser (user_name c)
 
-  (bookIds :: [Only Int]) <- case readMaybe @Int (T.unpack b) of
-    Just bId -> query "select id form books where id = ?" [bId]
-    Nothing  -> query "select id from books where title = ?" [b]
+  bookIds <- case readMaybe @Int (T.unpack b) of
+    Just bId -> query "select id, title from books where id = ?" [bId]
+    Nothing  -> query "select id, title from books where title = ?" [b]
 
   case bookIds of
     []    -> throwError "Could not find that book :("
-    [bId] -> do
+    [(bId, title)] -> do
       time <- liftIO $ getCurrentTime
-      castVote (fromOnly bId) uId time
+      castVote (bId) uId time
+      return $ F.sformat ("you've voted for \"_" % F.text % "_\"") title
     _ -> throwError "ruhroh multiple books were found"
 
 runInterp :: Connection -> Command -> IO R.Response
