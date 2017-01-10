@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables, FlexibleContexts, OverloadedStrings, TypeApplications #-}
 module Query where
 
 import           Control.Monad.Reader
@@ -13,6 +13,7 @@ import           Data.Maybe (listToMaybe)
 import           Data.Text
 import           Data.Time.Clock
 
+import Text.Read (readMaybe)
 
 type BookId = Int
 type UserId = Int
@@ -30,6 +31,17 @@ execute b c =  ask >>= \conn -> liftIO $ P.execute conn b c
 
 execute_ :: (MonadReader Connection m, MonadIO m) => Query -> m Int64
 execute_ b =  ask >>= \conn -> liftIO $ P.execute_ conn b
+
+bookFromIdOrTitle :: (MonadReader Connection m, MonadIO m, MonadError Text m) => Text -> m (BookId, Text)
+bookFromIdOrTitle s = do
+  bookIds <- case readMaybe @Int (unpack s) of
+    Just bId -> query "select id, title from books where id = ?" [bId]
+    Nothing  -> query "select id, title from books where title = ?" [s]
+
+  case bookIds of
+    []    -> throwError "Could not find that book :("
+    [x]   -> return x
+    _     -> throwError "Multiple books ???"
 
 findOrCreateUser :: (MonadReader Connection m, MonadIO m, MonadError Text m) => Text -> m UserId
 findOrCreateUser uname = do

@@ -39,6 +39,8 @@ data BookCommand
   = List
   | Add Text
   | Vote Text
+  | Unvote Text
+  | Menu
   deriving (Show, Eq)
 
 newtype Bookclub a = Bookclub
@@ -54,11 +56,13 @@ lex = lexeme sc
 
 parseCommand :: Parser BookCommand
 parseCommand = do
-  list <|> add <|> vote
+  list <|> add <|> vote <|> unvote <|> menu
   where list = sym "list" *> return List
-        add  = sym "add"  *> ((Add  . strip . pack) <$> manyTill anyChar eof)
-        vote = sym "vote" *> ((Vote . strip . pack) <$> manyTill anyChar eof)
-
+        add  = sym "add"  *> ((Add  . spack) <$> manyTill anyChar eof)
+        vote = sym "vote" *> ((Vote . spack) <$> manyTill anyChar eof)
+        unvote = sym "unvote" *> ((Unvote . spack) <$> manyTill anyChar eof)
+        menu = return Menu
+        spack = strip . pack
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
@@ -76,18 +80,18 @@ interpCommand c (Add b) = do
 interpCommand c (Vote b) = do
   uId <- findOrCreateUser (user_name c)
 
-  bookIds <- case readMaybe @Int (T.unpack b) of
-    Just bId -> query "select id, title from books where id = ?" [bId]
-    Nothing  -> query "select id, title from books where title = ?" [b]
-
-  case bookIds of
-    []    -> throwError "Could not find that book :("
-    [(bId, title)] -> do
-      time <- liftIO $ getCurrentTime
-      castVote (bId) uId time
-      return $ F.sformat ("you've voted for \"_" % F.text % "_\"") title
-    _ -> throwError "ruhroh multiple books were found"
-
+  (bId, title) <- bookFromIdOrTitle b
+  time <- liftIO $ getCurrentTime
+  castVote (bId) uId time
+  return $ F.sformat ("you've voted for \"_" % F.stext % "_\"") title
+interpCommand c (Unvote b) = do
+  uId <- findOrCreateUser (user_name c)
+  (bId, title) <- bookFromIdOrTitle b
+  hasVoted <- query "select count(*) from votes where user_id = ? and book_id = ?" (uId, bId)
+  case Prelude.head hasVoted of
+    Only (0 :: Int) -> throwError "You never voted in the first place"
+    _               -> return $ "I would undo your vote but I'm laaaazy"
+interpCommand c Menu = return "Commands are add <title>, vote|unvote <id|title>"
 runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
