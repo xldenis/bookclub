@@ -18,6 +18,7 @@ executable bookclub
   main-is:             Main.hs
   other-modules:       Slack
                      , Slack.Response
+                     , Query
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -32,3 +33,4 @@ executable bookclub
                      , warp
                      , bytestring
                      , exceptions
+                     , formatting
