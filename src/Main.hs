@@ -48,6 +48,7 @@ data BookCommand
   | Vote Text
   | Unvote Text
   | Menu
+  | Info Text
   deriving (Show, Eq)
 
 newtype Bookclub a = Bookclub
@@ -63,13 +64,15 @@ lex = lexeme sc
 
 parseCommand :: Parser BookCommand
 parseCommand = do
-  list <|> add <|> vote <|> unvote <|> menu
+  list <|> add <|> vote <|> unvote <|> info <|> menu
   where list = sym "list" *> return List
-        add  = sym "add"  *> ((Add  . spack) <$> manyTill anyChar eof)
-        vote = sym "vote" *> ((Vote . spack) <$> manyTill anyChar eof)
-        unvote = sym "unvote" *> ((Unvote . spack) <$> manyTill anyChar eof)
+        add  = cons "add" Add
+        vote = cons "vote" Vote
+        unvote = cons "unvote" Unvote
         menu = return Menu
+        info = cons "info" Info
         spack = strip . pack
+        cons s c = sym s *> ((c . spack) <$> manyTill anyChar eof)
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
 interpCommand c List = do
@@ -81,12 +84,9 @@ interpCommand c List = do
         int2Text = T.pack . show @Int
         bookLine = F.int % ". _" % F.text % "_ (" % F.int % ":+1:)"
 interpCommand c (Add b) = do
-  book <- liftIO (searchByTitle b) >>= \case
-    Just x  -> return x
-    Nothing -> throwError "Hmm... I wasn't able to find that book online :("
   time <- liftIO $ getCurrentTime
   execute "insert into books (title, created_at) values (?, ?)" (b, time)
-  return $ F.sformat ("Added _" % F.stext % "_ by " % F.stext % " to the list.") (title book) (author book)
+  return "Added book to the list!"
 interpCommand c (Vote b) = do
   uId <- findOrCreateUser (user_name c)
   (bId, title) <- bookFromIdOrTitle b
@@ -103,6 +103,11 @@ interpCommand c (Unvote b) = do
       execute "delete from votes where user_id = ? and book_id = ?" (uId, bId)
       return "done"
 interpCommand c Menu = return "Commands are add <title>, vote|unvote <id|title>"
+interpCommand c (Info b) = do
+  book <- liftIO (searchByTitle b) >>= \case
+    Just x  -> return x
+    Nothing -> throwError "Hmm... I wasn't able to find that book online :("
+  return $ F.sformat ("_" % F.stext % "_ by " % F.stext % ". " % F.stext) (title book) (author book) (description book)
 runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
