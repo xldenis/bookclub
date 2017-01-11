@@ -1,37 +1,44 @@
-{-# LANGUAGE TypeApplications, OverloadedStrings, DeriveFunctor, GeneralizedNewtypeDeriving, DeriveGeneric, ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications,
+             OverloadedStrings,
+             DeriveFunctor,
+             GeneralizedNewtypeDeriving,
+             DeriveGeneric,
+             LambdaCase,
+             ScopedTypeVariables #-}
 module Main where
 
-import           Data.Aeson
 import qualified Data.ByteString.Char8 as B
 import           Data.Text as T
 import           Data.Text.Lazy (toStrict)
 import           Data.Time.Clock
 
-import Text.Megaparsec as M
-import Text.Megaparsec.Lexer as L
-import Text.Megaparsec.Text
+import           Text.Megaparsec as M
+import           Text.Megaparsec.Lexer as L
+import           Text.Megaparsec.Text
 
-import Text.Read (readMaybe)
+import           Text.Read (readMaybe)
 
-import Control.Monad (void)
-import Control.Monad.Trans (MonadIO)
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.Catch
+import           Control.Monad (void)
+import           Control.Monad.Trans (MonadIO)
+import           Control.Monad.Except
+import           Control.Monad.Reader
+import           Control.Monad.Catch
 
 import           Network.Wai.Handler.Warp
 
-import System.Environment (getArgs, getEnv)
+import           System.Environment (getArgs, getEnv)
 
 import           Database.PostgreSQL.Simple hiding (query_, query, execute, execute_)
 
-import Slack
-import qualified Slack.Response as R
-
-import Query
-
 import qualified Formatting as F
 import           Formatting ((%))
+
+import           Slack
+import qualified Slack.Response as R
+
+import           Query
+import           GBooks
+import qualified GBooks as B
 
 type User = Text
 
@@ -74,9 +81,12 @@ interpCommand c List = do
         int2Text = T.pack . show @Int
         bookLine = F.int % ". _" % F.text % "_ (" % F.int % ":+1:)"
 interpCommand c (Add b) = do
+  book <- liftIO (searchByTitle b) >>= \case
+    Just x  -> return x
+    Nothing -> throwError "Hmm... I wasn't able to find that book online :("
   time <- liftIO $ getCurrentTime
   execute "insert into books (title, created_at) values (?, ?)" (b, time)
-  return "Added the book to the list!"
+  return $ F.sformat ("Added _" % F.stext % "_ by " % F.stext % " to the list.") (title book) (author book)
 interpCommand c (Vote b) = do
   uId <- findOrCreateUser (user_name c)
   (bId, title) <- bookFromIdOrTitle b

@@ -19,6 +19,7 @@ executable bookclub
   other-modules:       Slack
                      , Slack.Response
                      , Query
+                     , GBooks
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
                      , aeson
@@ -34,3 +35,7 @@ executable bookclub
                      , bytestring
                      , exceptions
                      , formatting
+                     , req
+                     , lens-aeson
+                     , lens
+                     , vector
