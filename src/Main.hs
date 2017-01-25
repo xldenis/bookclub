@@ -50,6 +50,7 @@ data BookCommand
   | Menu
   | Info Text
   | Remove Text
+  | Finish Text
   deriving (Show, Eq)
 
 newtype Bookclub a = Bookclub
@@ -73,6 +74,7 @@ parseCommand = do
         menu   = return Menu
         info   = cons "info" Info
         remove = cons "remove" Remove
+        finish = cons "finish" Finish
         spack  = strip . pack
         cons s c = sym s *> ((c . spack) <$> manyTill anyChar eof)
 
@@ -104,7 +106,7 @@ interpCommand c (Unvote b) = do
     _               -> do
       execute "delete from votes where user_id = ? and book_id = ?" (uId, bId)
       return "done"
-interpCommand c Menu = return "Commands are add <title>, vote|unvote <id|title>"
+interpCommand c Menu = return "Commands are add <title>, vote|unvote|delete|finish <id|title>"
 interpCommand c (Info b) = do
   book <- liftIO (searchByTitle b) >>= \case
     Just x  -> return x
@@ -115,6 +117,10 @@ interpCommand c (Remove t) = do
   execute "delete from books where id = ?" [bId]
   execute "delete from votes where book_id = ?" [bId]
   return $ F.sformat ("_" % F.stext % "_ was deleted") (title)
+interpCommand c (Finish t) = do
+  (bId, title) <- bookFromIdOrTitle t
+  execute "update books set read = true where id = ?" [bId]
+  return $ F.sformat ("_" % F.stext % "_ was finshed!") (title)
 runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
