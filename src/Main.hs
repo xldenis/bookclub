@@ -66,7 +66,7 @@ lex = lexeme sc
 
 parseCommand :: Parser BookCommand
 parseCommand = do
-  list <|> add <|> vote <|> unvote <|> info <|> remove <|> menu
+  list <|> add <|> vote <|> unvote <|> info <|> remove <|> finish <|> menu
   where list   = sym "list" *> return List
         add    = cons "add" Add
         vote   = cons "vote" Vote
