@@ -49,6 +49,7 @@ data BookCommand
   | Unvote Text
   | Menu
   | Info Text
+  | Remove Text
   deriving (Show, Eq)
 
 newtype Bookclub a = Bookclub
@@ -64,14 +65,15 @@ lex = lexeme sc
 
 parseCommand :: Parser BookCommand
 parseCommand = do
-  list <|> add <|> vote <|> unvote <|> info <|> menu
-  where list = sym "list" *> return List
-        add  = cons "add" Add
-        vote = cons "vote" Vote
+  list <|> add <|> vote <|> unvote <|> info <|> remove <|> menu
+  where list   = sym "list" *> return List
+        add    = cons "add" Add
+        vote   = cons "vote" Vote
         unvote = cons "unvote" Unvote
-        menu = return Menu
-        info = cons "info" Info
-        spack = strip . pack
+        menu   = return Menu
+        info   = cons "info" Info
+        remove = cons "remove" Remove
+        spack  = strip . pack
         cons s c = sym s *> ((c . spack) <$> manyTill anyChar eof)
 
 interpCommand :: Command -> BookCommand -> Bookclub Text
@@ -108,6 +110,11 @@ interpCommand c (Info b) = do
     Just x  -> return x
     Nothing -> throwError "Hmm... I wasn't able to find that book online :("
   return $ F.sformat ("_" % F.stext % "_ by " % F.stext % ". " % F.stext) (title book) (author book) (description book)
+interpCommand c (Remove t) = do
+  (bId, title) <- bookFromIdOrTitle t
+  execute "delete from books where id = ?" [bId]
+  execute "delete from votes where book_id = ?" [bId]
+  return $ F.sformat ("_" % F.stext % "_ was deleted") (title)
 runInterp :: Connection -> Command -> IO R.Response
 runInterp conn c = do
   case M.parseMaybe parseCommand (text c) of
