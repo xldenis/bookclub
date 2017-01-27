@@ -114,8 +114,8 @@ interpCommand c (Info b) = do
   return $ F.sformat ("_" % F.stext % "_ by " % F.stext % ". " % F.stext) (title book) (author book) (description book)
 interpCommand c (Remove t) = do
   (bId, title) <- bookFromIdOrTitle t
-  execute "delete from books where id = ?" [bId]
   execute "delete from votes where book_id = ?" [bId]
+  execute "delete from books where id = ?" [bId]
   return $ F.sformat ("_" % F.stext % "_ was deleted") (title)
 interpCommand c (Finish t) = do
   (bId, title) <- bookFromIdOrTitle t
